@@ -51,7 +51,6 @@ def greengrass_infinite_infer_run():
         client.publish(topic=iotTopic, payload="Model loaded")
         model_type = "classification"
         
-        topk = 5
         results_thread = FIFO_Thread()
         results_thread.start()
 
