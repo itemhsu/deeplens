@@ -51,9 +51,6 @@ def greengrass_infinite_infer_run():
         client.publish(topic=iotTopic, payload="Model loaded")
         model_type = "classification"
         
-        with open('caltech256_labels.txt', 'r') as f:
-	        labels = [l.rstrip() for l in f]
-	   
         topk = 5
         results_thread = FIFO_Thread()
         results_thread.start()
@@ -77,19 +74,19 @@ def greengrass_infinite_infer_run():
 
             # Output inference result to the fifo file so it can be viewed with mplayer
             parsed_results = model.parseResult(model_type, inferOutput)
-            top_k = parsed_results[model_type][0:topk]
+            #top_k = parsed_results[model_type][0:topk]
             msg = '{'
-            prob_num = 0 
-            for obj in top_k:
-                if prob_num == topk-1: 
-                    msg += '"{}": {:.2f}'.format(labels[obj["label"]], obj["prob"]*100)
-                else:
-                    msg += '"{}": {:.2f},'.format(labels[obj["label"]], obj["prob"]*100)
-            prob_num += 1
+            msg += '"{}": "{}"'.format(inferOutput, parsed_results)
             msg += "}"  
-            
+            obj=parsed_results[model_type][0]
+            if obj["prob"]>0.7:
+                if obj["label"]==1 :
+                    msg="dog"
+                elif obj["label"]==0:
+                    msg="cat"
+                    
             client.publish(topic=iotTopic, payload = msg)
-            cv2.putText(frame, labels[top_k[0]["label"]], (0,22), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 165, 20), 4)
+            cv2.putText(frame, msg, (0,22), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 165, 20), 4)
 
             global jpeg
             ret,jpeg = cv2.imencode('.jpg', frame)
