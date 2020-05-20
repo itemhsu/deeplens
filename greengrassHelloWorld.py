@@ -43,7 +43,7 @@ def greengrass_infinite_infer_run():
         input_width = 224
         input_height = 224
         model_name = "image-classification"
-        error, model_path = mo.optimize(model_name,input_width,input_height, aux_inputs={'--epoch': 3})
+        error, model_path = mo.optimize(model_name,input_width,input_height, aux_inputs={'--epoch': 60})
         # Load model to GPU (use {"GPU": 0} for CPU)
         mcfg = {"GPU": 1}
         model = awscam.Model(model_path, mcfg)
@@ -51,6 +51,7 @@ def greengrass_infinite_infer_run():
         client.publish(topic=iotTopic, payload="Model loaded")
         model_type = "classification"
         
+        topk = 5
         results_thread = FIFO_Thread()
         results_thread.start()
 
@@ -60,10 +61,15 @@ def greengrass_infinite_infer_run():
         doInfer = True
         while doInfer:
             # Get a frame from the video stream
-            ret, frame = awscam.getLastFrame()
+            ret, frame0 = awscam.getLastFrame()
             # Raise an exception if failing to get a frame
             if ret == False:
                 raise Exception("Failed to get frame from the stream")
+            height, width, channels = frame0.shape
+            y=height/2
+            x=width/2
+            f=320
+            frame = frame0[y-f:y+f, x-f:x+f]
 
             # Resize frame to fit model input requirement
             frameResize = cv2.resize(frame, (input_width, input_height))
@@ -78,11 +84,11 @@ def greengrass_infinite_infer_run():
             msg += '"{}": "{}"'.format(inferOutput, parsed_results)
             msg += "}"  
             obj=parsed_results[model_type][0]
-            if obj["prob"]>0.7:
+            if obj["prob"]>0.9:
                 if obj["label"]==1 :
-                    msg="dog"
+                    msg="dog : {:.4f}".format(obj["prob"])
                 elif obj["label"]==0:
-                    msg="cat"
+                    msg="cat : {:.4f}".format(obj["prob"])
                     
             client.publish(topic=iotTopic, payload = msg)
             cv2.putText(frame, msg, (0,22), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 165, 20), 4)
